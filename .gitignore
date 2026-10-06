@@ -1,6 +1,5 @@
 __pycache__/
 *.pyc
-data/
 outputs/
 mentor_results.zip
 .env

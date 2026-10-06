@@ -45,7 +45,10 @@ code('''import json
 import time
 from collections import Counter
 
-benchmark.fetch()
+if not (benchmark.ROOT / 'data' / 'ace_test.json').exists():
+    benchmark.fetch()
+else:
+    print('Using the bundled ACE test data; no dataset download needed.')
 cases = benchmark.load_cases(6)
 benchmark.prepare(cases)
 print("Label distribution:", Counter(item["gd_tr"] for _, item in cases))

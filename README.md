@@ -16,7 +16,14 @@ In Colab, use `%cd /content/Contract-revision-demo` instead. Select a T4 GPU fir
 For a shorter run: `!python run_t4.py --limit 3 --skip-revisions`.
 The script saves responses under `outputs/` and creates `mentor_results.zip`.
 Model inference needs a GPU runtime; the standard-library loader `run.py` can run locally.
-Dataset files, downloaded model weights and generated results are not committed.
+The downloaded ACE test split and provenance are included in `data/`.
+The runner uses this local copy when present. A standalone notebook uploaded without
+the repository downloads the dataset automatically. Model weights and generated results are not committed.
+
+Kaggle may report dependency conflicts with preinstalled Gradio or Diffusers after
+installation. This runner does not import those packages. If installation completes,
+continue with `!python run_t4.py --limit 6`, which starts a fresh Python process.
+If that command raises a traceback, retain it for diagnosis.
 
 ## Notebook option
 
