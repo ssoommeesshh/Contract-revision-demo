@@ -78,8 +78,11 @@ def main():
     parser.add_argument('--attention', choices=['sdpa', 'eager'], default='sdpa')
     parser.add_argument('--dtype', choices=['float16', 'float32'], default='float16')
     parser.add_argument('--model', default='Qwen/Qwen2.5-3B-Instruct')
+    parser.add_argument('--load-in-4bit', action='store_true', help='NF4 quantization for larger models on T4')
     parser.add_argument('--inspect', action='store_true', help='Validate sample and metrics without GPU inference')
     args = parser.parse_args()
+    if args.load_in_4bit and args.dtype != 'float16':
+        parser.error('--load-in-4bit uses float16 compute; omit --dtype float32')
     path = benchmark.ROOT / 'data/ace_test.json'
     raw = path.read_bytes()
     data = benchmark.normalize_records(json.loads(raw))
@@ -100,8 +103,15 @@ def main():
     output.mkdir(parents=True)
     print('Results:', output, 'GPU:', torch.cuda.get_device_name(0), flush=True)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
-    model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=getattr(torch, args.dtype),
-               device_map={'': 0}, attn_implementation=args.attention).eval()
+    load_options = {'torch_dtype': getattr(torch, args.dtype),
+                    'device_map': {'': 0}, 'attn_implementation': args.attention}
+    if args.load_in_4bit:
+        from transformers import BitsAndBytesConfig
+        load_options['quantization_config'] = BitsAndBytesConfig(
+            load_in_4bit=True, bnb_4bit_quant_type='nf4',
+            bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=torch.float16)
+    print('Model:', args.model, 'Quantization:', 'NF4 / float16 compute' if args.load_in_4bit else 'none', flush=True)
+    model = AutoModelForCausalLM.from_pretrained(args.model, **load_options).eval()
     benchmark.write_json(output / 'manifest.json', {
         'args': vars(args), 'model_revision': getattr(model.config, '_commit_hash', None),
         'dataset_sha256': hashlib.sha256(raw).hexdigest(), 'case_indices': [i for i, _ in selected],

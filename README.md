@@ -1,5 +1,25 @@
 # Today's mentor feasibility showcase
 
+## Larger model on a T4
+
+Use Qwen2.5-7B-Instruct with NF4 quantization to reduce GPU memory requirements.
+Start with controls, then compare the same 60 cases and seed as the 3B run:
+
+```python
+!git pull origin main
+%pip install -q -r requirements-4bit.txt
+!python diagnose.py --model Qwen/Qwen2.5-7B-Instruct --load-in-4bit --controls-only
+!python diagnose.py --model Qwen/Qwen2.5-7B-Instruct --load-in-4bit --limit 60 --seed 42
+```
+
+Use a GPU session without another loaded model. The initial download is larger
+than the 3B download; quantization reduces GPU memory, not download size.
+Both runs preserve the same prompts, sample and output-token limits. The manifest
+records quantization, so report this as a 3B float16 versus 7B NF4 comparison.
+For a comparison with the same quantization setting, optionally rerun the 3B model
+with `--load-in-4bit`. Better accuracy on ACE is a hypothesis, not guaranteed.
+Local syntax and selection checks do not verify GPU loading or performance.
+
 ## Investigate repeated Non-Compliant answers
 
 ```python
