@@ -15,6 +15,14 @@ cells in a fresh GPU notebook:
 In Colab, use `%cd /content/Contract-revision-demo` instead. Select a T4 GPU first.
 For a shorter run: `!python run_t4.py --limit 3 --skip-revisions`.
 The script saves responses under `outputs/` and creates `mentor_results.zip`.
+Console results include comparison tables and wrapped explanations. To display
+an existing run without loading the model or using a GPU:
+
+```python
+!python run_t4.py --show-saved
+```
+
+Raw JSON predictions remain in `outputs/` for evaluation.
 Model inference needs a GPU runtime; the standard-library loader `run.py` can run locally.
 The downloaded ACE test split and provenance are included in `data/`.
 The runner uses this local copy when present. A standalone notebook uploaded without

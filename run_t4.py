@@ -1,13 +1,36 @@
 import argparse
 from pathlib import Path
 import run as benchmark
+import console_report as report
+import json
 
 parser = argparse.ArgumentParser(description="T4 ACE feasibility run")
 parser.add_argument('--limit', type=int, default=6)
 parser.add_argument('--skip-revisions', action='store_true')
+parser.add_argument('--show-saved', action='store_true', help='Display saved outputs without GPU inference')
 args = parser.parse_args()
 if args.limit < 1:
     parser.error('--limit must be positive')
+
+if args.show_saved:
+    found = False
+    data = benchmark.normalize_records(json.loads((benchmark.ROOT / 'data/ace_test.json').read_text(encoding='utf-8')))
+    for mode in ['ordinary','verify']:
+        path = Path('outputs') / f'predictions_{mode}.json'
+        if path.exists():
+            found = True
+            rows = json.loads(path.read_text(encoding='utf-8'))
+            cases = [(r['case_index'],data[r['case_index']]) for r in rows]
+            report.ace_results(cases,{mode:rows},{mode:benchmark.score(cases,rows)})
+            report.case(*cases[0])
+            report.answer(mode.title() + ' first saved answer',rows[0])
+    path = Path('outputs/synthetic_revision_outputs.json')
+    if path.exists() and not args.skip_revisions:
+        found = True
+        report.revisions(json.loads(path.read_text(encoding='utf-8')))
+    if not found:
+        parser.error('No saved predictions in outputs/. Run inference first.')
+    raise SystemExit(0)
 
 
 import torch
@@ -28,9 +51,7 @@ cases = benchmark.load_cases(args.limit)
 benchmark.prepare(cases)
 print("Label distribution:", Counter(item["gd_tr"] for _, item in cases))
 index, example = cases[0]
-print("Scenario:", example["scenario_text"])
-print("Contract clauses:", json.dumps(example["clauses"], indent=2))
-print("Reference label (never included in model input):", example["gd_tr"])
+report.case(index, example)
 
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -98,17 +119,12 @@ for mode in ["ordinary", "verify"]:
     summaries[mode] = benchmark.score(cases, predictions)
     benchmark.write_json(Path("outputs") / f"scores_{mode}.json", summaries[mode])
 
-for mode, summary in summaries.items():
-    print(mode, f"{summary['correct']}/{summary['n']} correct", "accuracy:", summary["accuracy"])
-    print("Confusion matrix:", json.dumps(summary["confusion_matrix"]))
-    print("Invalid evidence IDs:", summary["invalid_evidence_ids"])
-print("These are tiny-sample smoke-test results, not a reliable comparison.")
+report.ace_results(cases, all_predictions, summaries)
 
 
 # Inspect the actual explanation and evidence, including any disagreement.
 for mode in all_predictions:
-    print("\nCONDITION:", mode)
-    print(json.dumps(all_predictions[mode][0], indent=2))
+    report.answer(mode.title() + ' first example explanation', all_predictions[mode][0])
 
 
 if not args.skip_revisions:
@@ -130,7 +146,12 @@ if not args.skip_revisions:
          "reference_after": "uncertain"}
     ]
     revision_outputs = []
+    report.heading('Synthetic SaaS revision checks')
+    report.paragraph('Protected requirement', requirement)
+    for clause_id, passage in original.items():
+        report.paragraph('Original clause ' + clause_id, passage)
     for case in revision_cases:
+        report.paragraph('Proposed clause 4.2: ' + case['id'], case['new_text'])
         revised = dict(original)
         revised["4.2"] = case["new_text"]
         prompt = (
@@ -149,7 +170,8 @@ if not args.skip_revisions:
                "raw": raw, "timing": timing, "error": error}
         revision_outputs.append(row)
         benchmark.write_json(Path("outputs") / "synthetic_revision_outputs.json", revision_outputs)
-        print(json.dumps(row, indent=2))
+        print('Completed:', case['id'])
+    report.revisions(revision_outputs)
 
 
 # Save outputs and provenance before the GPU session ends.
