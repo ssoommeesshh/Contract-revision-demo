@@ -1,4 +1,4 @@
-# Today's mentor feasibility showcase
+# feasibility showcase
 
 ## Larger model on a T4
 
