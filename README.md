@@ -1,5 +1,44 @@
 # Today's mentor feasibility showcase
 
+## Investigate repeated Non-Compliant answers
+
+```python
+!git pull origin main
+!python diagnose.py --limit 60
+```
+
+This runs six simple controls under the original and a grounded diagnostic prompt,
+then runs both prompts on a seeded sample of 60 ACE examples (20 per label).
+The original six inspected cases are excluded. It reports prediction counts,
+per-class precision/recall/F1, macro-F1, errors and confusion matrices. Prompts,
+raw responses and configuration are saved in separate timestamped folders under
+`outputs/diagnostic_.../`, preserving the initial run. Generation scores are checked
+for NaN or positive infinity; inputs are never silently truncated.
+
+Start with controls only if short on time:
+
+```python
+!python diagnose.py --controls-only
+```
+
+If controls fail, compare an alternate attention backend:
+
+```python
+!python diagnose.py --controls-only --attention eager
+```
+
+For a numerical-precision check, with no other model using GPU memory:
+
+```python
+!python diagnose.py --controls-only --attention eager --dtype float32
+```
+
+Float32 requires substantially more GPU memory and may fail if the session has
+another loaded model. These diagnostics do not reproduce COMPACT training.
+The grounded prompt is a new development condition, not the original verification
+condition. Further testing on a separate sample is needed after prompt development.
+No GPU inference is performed by `--inspect`; use it for data/selection checks.
+
 ## Clone and run in Kaggle
 
 Select a GPU accelerator and enable Internet in notebook settings. Run these
